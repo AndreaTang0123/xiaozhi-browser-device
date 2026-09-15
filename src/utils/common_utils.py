@@ -57,7 +57,6 @@ def extract_verification_code(text: str) -> Optional[str]:
             "输入验证码",
             "输入",
             "面板",
-            "xiaozhi.me",
             "激活码",
         ]
 

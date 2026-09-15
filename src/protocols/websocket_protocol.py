@@ -9,6 +9,7 @@ from src.constants.constants import AudioConfig
 from src.logging import get_logger
 from src.protocols.protocol import Protocol
 from src.utils.config_manager import get_config
+from src.utils.network_guard import assert_private_or_localhost
 
 # 服务器可能使用自签名证书，暂时跳过客户端证书验证
 # 以避免生产环境中非正规SSL证书导致连接失败
@@ -31,6 +32,14 @@ class WebsocketProtocol(Protocol):
         self.WEBSOCKET_URL = self.config.get_config(
             "SYSTEM_OPTIONS.NETWORK.WEBSOCKET_URL"
         )
+        if not self.WEBSOCKET_URL:
+            raise RuntimeError(
+                "WEBSOCKET_URL 未配置：OTA 流程应已从自建 server 写入该值，"
+                "本项目不允许回退到任何默认地址。请检查 OTA 请求是否成功。"
+            )
+        # 隐私约束：连接地址必须是私有网段/localhost，域名和公网 IP 一律拒绝
+        assert_private_or_localhost(self.WEBSOCKET_URL, label="WebSocket 连接地址")
+
         access_token = self.config.get_config(
             "SYSTEM_OPTIONS.NETWORK.WEBSOCKET_ACCESS_TOKEN"
         )
@@ -60,6 +69,8 @@ class WebsocketProtocol(Protocol):
             current_ssl_context = None
             if self.WEBSOCKET_URL.startswith("wss://"):
                 current_ssl_context = ssl_context
+
+            logger.info(f"[3/3] 实际连接地址: {self.WEBSOCKET_URL}")
 
             # 建立WebSocket连接 (兼容不同Python版本的写法)
             try:

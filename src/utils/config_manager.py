@@ -68,12 +68,14 @@ class ConfigManager:
             "DEVICE_ID": None,
             "WINDOW_SIZE_MODE": "default",
             "NETWORK": {
-                "OTA_VERSION_URL": "https://api.tenclass.net/xiaozhi/ota/",
+                # 无默认值/官方地址兜底：由 main.py 启动时从环境变量
+                # （XIAOZHI_OTA_URL，见 .env.example）强制写入，缺失则 fail fast。
+                "OTA_VERSION_URL": None,
                 "WEBSOCKET_URL": None,
                 "WEBSOCKET_ACCESS_TOKEN": None,
                 "MQTT_INFO": None,
-                "ACTIVATION_VERSION": "v2",  # 可选值: v1, v2
-                "AUTHORIZATION_URL": "https://xiaozhi.me/",
+                "ACTIVATION_VERSION": "v1",  # 可选值: v1, v2；自建 server 通常不下发 activation 数据，默认 v1 跳过激活 UI
+                "AUTHORIZATION_URL": None,  # 可选：来自 XIAOZHI_AUTHORIZATION_URL，无网页控制台可留空
             },
         },
         "WAKE_WORD_OPTIONS": {

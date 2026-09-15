@@ -68,8 +68,37 @@ setup_logging(
 from src.bootstrap.container import ServiceContainer  # noqa: E402
 from src.constants.system import SystemConstants  # noqa: E402
 from src.logging import get_logger  # noqa: E402
+from src.utils.config_manager import get_config  # noqa: E402
+from src.utils.env_config import load_dotenv, optional_env, require_env  # noqa: E402
 
 logger = get_logger()
+
+
+def _apply_env_overrides() -> None:
+    """从 .env / 环境变量强制写入服务端地址，缺失即 fail fast，绝不回退默认地址."""
+    load_dotenv()
+    ota_url = require_env("XIAOZHI_OTA_URL")
+
+    config = get_config()
+    config.update_config("SYSTEM_OPTIONS.NETWORK.OTA_VERSION_URL", ota_url, save=False)
+
+    activation_version = optional_env("XIAOZHI_ACTIVATION_VERSION")
+    if activation_version:
+        config.update_config(
+            "SYSTEM_OPTIONS.NETWORK.ACTIVATION_VERSION", activation_version, save=False
+        )
+
+    authorization_url = optional_env("XIAOZHI_AUTHORIZATION_URL")
+    if authorization_url:
+        config.update_config(
+            "SYSTEM_OPTIONS.NETWORK.AUTHORIZATION_URL", authorization_url, save=False
+        )
+
+    config.save_config()
+    logger.info(f"已从环境变量加载 OTA_VERSION_URL: {ota_url}")
+
+
+_apply_env_overrides()
 
 
 async def handle_activation(mode: str) -> bool:

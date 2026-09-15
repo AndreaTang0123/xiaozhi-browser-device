@@ -77,8 +77,14 @@ class CliActivation(BaseActivation):
 
     def _print_activation_info(self, data: dict):
         """打印激活信息."""
+        from src.utils.config_manager import get_config
+
         code = data.get("code", "------")
-        message = data.get("message", "请访问 xiaozhi.me 输入验证码")
+        auth_url = get_config().get_config("SYSTEM_OPTIONS.NETWORK.AUTHORIZATION_URL")
+        message = data.get(
+            "message",
+            f"请访问 {auth_url} 输入验证码" if auth_url else "请按 server 提示输入验证码",
+        )
 
         print("\n" + "-" * 60)
         print("激活信息")
@@ -87,7 +93,10 @@ class CliActivation(BaseActivation):
         print(f"说明: {message}")
         print("-" * 60)
         print("\n激活步骤:")
-        print("  1. 打开浏览器访问 xiaozhi.me")
+        if auth_url:
+            print(f"  1. 打开浏览器访问 {auth_url}")
+        else:
+            print("  1. 打开自建 server 的设备管理页面（未配置 AUTHORIZATION_URL）")
         print("  2. 登录您的账户")
         print("  3. 选择添加设备")
         print(f"  4. 输入验证码: {code}")

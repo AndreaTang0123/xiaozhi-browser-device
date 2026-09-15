@@ -11,6 +11,7 @@ import aiohttp
 
 from src.constants.system import SystemConstants
 from src.logging import get_logger
+from src.utils.network_guard import assert_private_or_localhost
 
 if TYPE_CHECKING:
     from src.activation.identity import DeviceIdentity
@@ -60,12 +61,20 @@ class OtaConfigClient:
     async def fetch_ota_config(self) -> Dict:
         ota_url = self._config.get_config("SYSTEM_OPTIONS.NETWORK.OTA_VERSION_URL")
         device_id = self._config.get_config("SYSTEM_OPTIONS.DEVICE_ID")
-        if not ota_url or not device_id:
-            raise ValueError("OTA URL 或 DEVICE_ID 未配置")
+        if not ota_url:
+            raise ValueError(
+                "OTA_VERSION_URL 未配置：请设置环境变量 XIAOZHI_OTA_URL "
+                "（见 .env.example），本项目不允许回退到任何默认地址"
+            )
+        if not device_id:
+            raise ValueError("DEVICE_ID 未配置")
+
+        # 隐私约束：OTA 地址必须是私有网段/localhost，域名和公网 IP 一律拒绝
+        assert_private_or_localhost(ota_url, label="OTA 地址")
 
         headers = self._build_ota_headers()
         payload = self._build_ota_payload()
-        logger.debug(f"OTA请求: {ota_url}")
+        logger.info(f"[1/3] OTA 请求地址: {ota_url}")
 
         ssl_context = ssl.create_default_context()
         ssl_context.check_hostname = False
@@ -124,8 +133,10 @@ class OtaConfigClient:
         if "websocket" in data:
             ws = data["websocket"]
             if ws.get("url"):
+                # 隐私约束：OTA 下发的 websocket 地址同样必须是私有网段/localhost
+                assert_private_or_localhost(ws["url"], label="OTA 返回的 WebSocket 地址")
                 updates["SYSTEM_OPTIONS.NETWORK.WEBSOCKET_URL"] = ws["url"]
-                logger.info(f"WebSocket URL: {ws['url']}")
+                logger.info(f"[2/3] OTA 返回的 WebSocket 地址: {ws['url']}")
             token = ws.get("token", "test-token") or "test-token"
             updates["SYSTEM_OPTIONS.NETWORK.WEBSOCKET_ACCESS_TOKEN"] = token
         if updates:
@@ -135,7 +146,12 @@ class OtaConfigClient:
             self.activation_data = data["activation"]
             self.server_activated = False
         else:
-            logger.info("无激活数据，设备已授权")
+            # 自建 server 的 OTA 响应通常不带 activation 字段（无网页控制台/无需人工激活码）；
+            # 这不是代码在"默默绕过"激活流程，而是协议约定：无 activation 数据即视为已授权。
+            logger.info(
+                "OTA 响应无 activation 字段，视为服务端已授权（跳过激活码流程，"
+                "如需强制走激活 UI 请让自建 server 在 OTA 响应里带上 activation.code/challenge）"
+            )
             self.activation_data = None
             self.server_activated = True
 

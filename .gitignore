@@ -1,0 +1,10 @@
+# 本地服务端地址/凭证配置，不得提交（用 .env.example 作为占位模板）
+.env
+.env.*
+!.env.example
+
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store
